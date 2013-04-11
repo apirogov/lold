@@ -2,6 +2,313 @@
 #Copyright (C) 2013 Anton Pirogov
 #Licensed under the MIT License
 
+require 'socket'
+require 'gserver'
+
+#Class with commonly used methods
+class LolHelper
+
+  CLEAR_FRAME="0,0,0,0,0,0,0,0,0"
+
+  #instead of sending a frame to the shield
+  #output to console (for testing / no shield given)
+  def self.dummy_output(frame)
+    lines = frame.split(',').map(&:to_i)
+    lines.each do |l|
+      0.upto(13) do |i|
+        if (l & (1<<i))!=0
+          print "\e[31;1mO\e[0m" #ON (ANSI red)
+        else
+          print "O" #OFF
+        end
+      end
+      puts
+    end
+    puts "\e[A"*10 #ANSI cursor up
+  end
+
+  def self.render_frame(device,frame)
+    if device.nil?
+      dummy_output frame
+    else
+      File.write(device,frame+"\n")
+    end
+  end
+
+  def self.sleep_ms(ms)
+    sleep ms.to_f/1000
+  end
+
+  #send an animation task to a server. returns true on success
+  def self.send(params={})
+    frames = params[:frames]
+
+    host = params[:host]
+    port = params[:port]
+    delay = params[:delay]
+    ttl = params[:ttl]
+    ch = params[:ch]
+
+    host = "localhost" if !host
+    port = LoldServer::DEF_PORT if !port
+
+    s = TCPSocket.open(host,port)
+    if s.gets.chomp==LoldServer::SYM_BSY
+      s.close
+      return false
+    end
+
+    s.puts LoldServer::SYM_TSK
+    s.puts LoldServer::SYM_DEL+" #{delay}" if delay
+    s.puts LoldServer::SYM_TTL+" #{ttl}" if ttl
+    s.puts LoldServer::SYM_CHL+" #{ch}" if ch
+
+    s.puts LoldServer::SYM_DAT
+    frames.each do |f|
+      s.puts f
+    end
+
+    s.puts LoldServer::SYM_END
+    if s.gets.chomp==LoldServer::SYM_ERR
+      s.close
+      return false
+    end
+
+    s.close
+    return true
+  rescue
+    return false
+  end
+end
+
+#Class to simplify interactive applications on the LolShield
+class LolApp
+  attr_reader :host,:port,:delay,:running
+
+  #Params: String host, int port, int delay (50-1000)
+  def initialize(host, port=LoldServer::DEF_PORT, delay=LolTask::DEF_DELAY)
+    @host = host
+    @port = port
+    @delay = delay
+
+    @socket = TCPSocket.open(host,port)
+    ret = @socket.gets.chomp
+    raise "Busy" if @socket.gets.chomp==LoldServer::SYM_BSY
+
+    @socket.puts LoldServer::SYM_STM
+  end
+
+  #returns whether the app is alive
+  def running?
+    @running
+  end
+
+  #stops app
+  def stop
+    @socket.puts LoldServer::SYM_END
+    @running = false
+  end
+end
+
+#instance of an animation task
+class LolTask
+  attr_accessor :delay, :ttl, :channel
+  attr_reader :timestamp
+
+  DEF_DELAY = 50    #standard. (valid: 50-1000, NOTE: below 50 may glitch often)
+  DEF_TTL = 60      #60 sec (valid: 0-600)
+  DEF_CH = 0        #valid: 0+
+  #Channel work this way: higher channel=higher priority
+  #same channel = in order of arrival
+  #new message on higher channel = discard current message
+
+  def initialize
+    @delay    = DEF_DELAY
+    @ttl      = DEF_TTL
+    @channel  = DEF_CH
+
+    @frames   = []  #empty frame
+    @index    = 0   #current position
+    @timestamp = Time.now.to_i #creation timestamp
+  end
+
+  #enqueue a frame
+  def push_frame(f)
+    @frames.push f
+  end
+
+  #get next frame
+  def pop_frame
+    f = @frames[@index]
+    @index += 1
+    cancel if @index>=@frames.length
+    return f
+  end
+
+  #empty current message -> dropped
+  def cancel
+    @frames = []
+  end
+
+  def done?
+    return @frames.empty?
+  end
+end
+
+#server accepting clients
+class LoldServer < GServer
+  DEF_PORT = 10101 #default lold port
+
+  #defined tokens for protocol
+  SYM_TSK = "TASK"
+  SYM_STM = "STREAM"
+
+  SYM_TTL = "TTL"
+  SYM_CHL = "CH"
+  SYM_DEL = "DELAY"
+
+  SYM_DAT = "DATA"
+  SYM_END = "END"
+
+  SYM_OK  = "OK"
+  SYM_BSY  = "BUSY"
+  SYM_ERR = "ERR"
+
+  @valid_syms = [SYM_TSK,SYM_TTL,SYM_CHL,SYM_DEL,SYM_DAT,SYM_END]
+
+  attr_accessor :device,:streaming,:interrupted,:shutting_down,:queue
+
+  def initialize(*args)
+    super(*args)
+
+    @device = nil
+
+    @streaming = false
+    @interrupted = false
+    @shutting_down = false
+    @queue = []
+  end
+
+  def serve(io)
+    err = Proc.new{ io.puts SYM_ERR; return }
+
+    if @streaming #locked state? -> tell
+      io.puts SYM_BSY
+      return
+    else
+      io.puts SYM_OK
+    end
+
+    #read head
+    line = io.gets.chomp
+    err.call if line != SYM_TSK && line != SYM_STM
+
+    #read content
+    if line==SYM_TSK
+      read_task(io)
+    else
+      read_stream(io)
+    end
+  end
+
+  #read an async animation task
+  def read_task(io)
+    err = Proc.new{ io.puts SYM_ERR; return }
+
+    task = LolTask.new
+
+    #read parameters
+    while true
+      line = io.gets.chomp.split(/\s+/)
+      p = line[0]
+      v = line[1].to_i
+
+      break if p==SYM_DAT # -> data section
+
+      #read parameter and throw error if out of range
+      case p
+      when SYM_TTL
+        err.call if v<0 || v>600
+        task.ttl=v
+      when SYM_CHL
+        err.call if v<0
+        task.channel=v
+      when SYM_DEL
+        err.call if v<50 || v>1000
+        task.delay=v
+      else #invalid parameter?
+        err.call
+      end
+    end
+
+    #read frames
+    while true
+      line = io.gets.chomp
+      break if line==SYM_END
+      err.call if line.split(',').length != 9 #invalid frame
+      task.push_frame line
+    end
+
+    insert_task task
+    @interrupted = true #notify other thread
+
+    puts "Ani added on channel #{task.channel}" if DEBUG
+    io.puts SYM_OK  #Response
+  end
+
+  #read a realtime stream of frames
+  def read_stream(io)
+    err = Proc.new{ @streaming=false; io.puts SYM_ERR; return }
+
+    puts "Stream started" if DEBUG
+    @streaming = true #lock
+
+    #read frames
+    while true
+      line = io.gets.chomp
+      break if line==SYM_END
+      err.call if line.split(',').length != 9 #invalid frame
+      LolHelper.render_frame @device, line
+    end
+
+    @streaming = false  #unlock
+    LolHelper.render_frame $device, LolHelper::CLEAR_FRAME
+
+    puts "Stream finished" if DEBUG
+    io.puts SYM_OK  #Response
+  end
+
+  ####
+
+  #insert task into queue on correct position
+  def insert_task(task)
+    0.upto(@queue.length) do |i|
+      t = @queue[i]
+      if t.nil? || (t.channel<=task.channel && t.timestamp<=task.timestamp)
+        @queue.insert i, task
+        return
+      end
+    end
+  end
+
+  #remove expired tasks
+  def clean_tasks
+    time = Time.now.to_i
+    @queue.map! do |t|
+      if t.done?
+        puts "Task cleaned (done)" if DEBUG
+        nil
+      elsif t.ttl>0 && time > t.timestamp+t.ttl
+        puts "Task cleaned (age)" if DEBUG
+        nil
+      else
+        t
+      end
+    end
+    @queue.delete nil
+  end
+end
+
 #usage: create new object, modify @frame as you wish directly or set/get/toggle
 #.banner renders a frameset with scrolling text automatically
 #.draw uses current frame
@@ -170,6 +477,10 @@ class LolFactory
 
     def clear
       @frame = new_frame
+    end
+
+    def empty!
+      @frames = []
     end
 
     #stringify animation frameset

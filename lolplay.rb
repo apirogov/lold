@@ -5,25 +5,20 @@
 require 'socket'
 require "#{File.dirname(__FILE__)}/lollib"
 
-DEF_HOST= "localhost"
-DEF_PORT= 10101
-
-DEF_D = 50
-DEF_T = 60
-DEF_C = 0
+DEF_HOST = "localhost"
 
 if ARGV.length == 0
   puts "Usage: lolplay.rb FLAGS [-f|-p] FILE"
   puts "       lolplay.rb FLAGS -m \"message\""
   puts "FLAGS:"
   puts "  -h: lold host, default: #{DEF_HOST}"
-  puts "  -p: lold port, default: #{DEF_PORT}"
-  puts "  -D: Frame delay (50-1000),  default: #{DEF_D}"
-  puts "  -T: TTL in sec (0-600),     default: #{DEF_T}"
-  puts "  -C: Channel/Priority (>=0), default: #{DEF_C}"
+  puts "  -p: lold port, default: #{LoldServer::DEF_PORT}"
+  puts "  -D: Frame delay (50-1000),  default: #{LolTask::DEF_DELAY}"
+  puts "  -T: TTL in sec (0-600),     default: #{LolTask::DEF_TTL}"
+  puts "  -C: Channel/Priority (>=0), default: #{LolTask::DEF_CH}"
   puts
   puts "-F: File is in AsciiFrame format"
-  puts "-F: File is PDE file from Lol Shield Theatre Homepage"
+  puts "-P: File is PDE file from Lol Shield Theatre Homepage"
   puts "nothing: expecting raw animation file"
   puts
   puts "-m: Send text message"
@@ -39,11 +34,11 @@ def eval_arg(arg,default)
   return ret
 end
 
-del = eval_arg "-D", DEF_D
-ttl = eval_arg "-T", DEF_T
-chl = eval_arg "-C", DEF_C
+del = eval_arg "-D", nil
+ttl = eval_arg "-T", nil
+chl = eval_arg "-C", nil
+port = eval_arg "-p", LoldServer::DEF_PORT
 host = eval_arg "-h", DEF_HOST
-port = eval_arg "-p", DEF_PORT
 
 #conversion functions
 
@@ -80,7 +75,6 @@ def pde2raw(lines)
 end
 
 ########
-
 lines=[]
 
 if ARGV.index("-m")
@@ -105,16 +99,6 @@ elsif ARGV.index("-P") #lol shield theatre Pde format
 end
 #otherwise - do nothing, assume "raw" correct input
 
-s = TCPSocket.open(host,port)
-s.puts "TASK"
-s.puts "DELAY #{del}"
-s.puts "TTL #{ttl}"
-s.puts "CH #{chl}"
-
-s.puts "DATA"
-lines.each do |l|
-  s.puts l
-end
-s.puts "END"
-#puts s.gets.chomp #response, we don't care normally
-s.close
+#send animation task
+params={host:host, port:port, delay:del, ttl:ttl, ch:chl, frames:lines}
+LolHelper.send params
