@@ -25,20 +25,11 @@ if ARGV.length == 0
   exit 1
 end
 
-#simple argument evaluation
-def eval_arg(arg,default)
-  i = ARGV.index(arg)
-  return default if i.nil?
-  ret = ARGV[i+1]
-  2.times{ ARGV.delete_at(i) }
-  return ret
-end
-
-del = eval_arg "-D", nil
-ttl = eval_arg "-T", nil
-chl = eval_arg "-C", nil
-port = eval_arg "-p", LoldServer::DEF_PORT
-host = eval_arg "-h", DEF_HOST
+del = LolHelper.eval_arg "-D", nil
+ttl = LolHelper.eval_arg "-T", nil
+chl = LolHelper.eval_arg "-C", nil
+port = LolHelper.eval_arg "-p", LoldServer::DEF_PORT
+host = LolHelper.eval_arg "-h", DEF_HOST
 
 #conversion functions
 

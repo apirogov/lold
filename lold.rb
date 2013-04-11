@@ -7,15 +7,6 @@ require "#{File.dirname(__FILE__)}/lollib"
 
 DEBUG=false
 
-#simple argument evaluation
-def eval_arg(arg,default)
-  i = ARGV.index(arg)
-  return default if i.nil?
-  ret = ARGV[i+1]
-  2.times{ ARGV.delete_at(i) }
-  return ret
-end
-
 #automatic lolshield detection (serial USB device search)
 def autodetect
   devs=Dir.new('/dev').entries
@@ -27,10 +18,10 @@ end
 
 #read possible parameters for daemon
 auto = ARGV.index('-a') ? true : false     #automatic device detection
-device = eval_arg('-d',nil)                #lolshield device, nil=stdout
+device = LolHelper.eval_arg('-d',nil)                #lolshield device, nil=stdout
 device = autodetect if auto
-port = eval_arg('-p',LoldServer::DEF_PORT) #port for lold to listen
-delay = eval_arg('-D',LolTask::DEF_DELAY)  #standard delay between frames
+port = LolHelper.eval_arg('-p',LoldServer::DEF_PORT) #port for lold to listen
+delay = LolHelper.eval_arg('-D',LolTask::DEF_DELAY)  #standard delay between frames
 
 currtask = nil                             #current task being executed
 

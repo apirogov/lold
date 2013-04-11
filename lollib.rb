@@ -79,6 +79,15 @@ class LolHelper
   rescue
     return false
   end
+
+  #simple argument evaluation
+  def self.eval_arg(arg,default)
+    i = ARGV.index(arg)
+    return default if i.nil?
+    ret = ARGV[i+1]
+    2.times{ ARGV.delete_at(i) }
+    return ret
+  end
 end
 
 #Class to simplify interactive applications on the LolShield
