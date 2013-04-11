@@ -3,7 +3,7 @@
 #Copyright (C) 2013 Anton Pirogov
 #Licensed under the MIT License
 
-require './lollib'
+require "#{File.dirname(__FILE__)}/lollib"
 
 DEBUG=false
 
@@ -16,8 +16,19 @@ def eval_arg(arg,default)
   return ret
 end
 
+#automatic lolshield detection (serial USB device search)
+def autodetect
+  devs=Dir.new('/dev').entries
+  devs = devs.select{|s| s.match /tty(USB|ACM).*/}
+  dev = devs.first
+  return '/dev/'+dev if dev
+  return nil
+end
+
 #read possible parameters for daemon
+auto = ARGV.index('-a') ? true : false     #automatic device detection
 device = eval_arg('-d',nil)                #lolshield device, nil=stdout
+device = autodetect if auto
 port = eval_arg('-p',LoldServer::DEF_PORT) #port for lold to listen
 delay = eval_arg('-D',LolTask::DEF_DELAY)  #standard delay between frames
 
@@ -26,10 +37,10 @@ currtask = nil                             #current task being executed
 #check device path
 if device!=nil
   if !File.exists?(device)
-    puts "Device does not exist!"
+    puts "Device #{device} does not exist!"
     exit 1
   elsif !File.writable?(device)
-    puts "Device has wrong permissions!"
+    puts "Device #{device} has wrong permissions!"
     exit 1
   end
 end
