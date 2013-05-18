@@ -18,7 +18,7 @@ end
 
 #read possible parameters for daemon
 auto = ARGV.index('-a') ? true : false     #automatic device detection
-device = LolHelper.eval_arg('-d',nil)                #lolshield device, nil=stdout
+device = LolHelper.eval_arg('-d',nil)      #lolshield device, nil=stdout
 device = autodetect if auto
 port = LolHelper.eval_arg('-p',LoldServer::DEF_PORT) #port for lold to listen
 delay = LolHelper.eval_arg('-D',LolTask::DEF_DELAY)  #standard delay between frames
@@ -77,7 +77,8 @@ loop do
     LolHelper.sleep_ms delay
     next
   else  #animation custom delay
-    LolHelper.sleep_ms currtask.delay
+    del = currtask.delay==LolTask::DEF_DELAY ? delay : currtask.delay
+    LolHelper.sleep_ms del
   end
 
   frame = currtask.pop_frame #get next frame

@@ -4,11 +4,19 @@
 
 require 'socket'
 require 'gserver'
+require 'timeout'
+require 'serialport'
 
 #Class with commonly used methods
 class LolHelper
 
   CLEAR_FRAME="0,0,0,0,0,0,0,0,0"
+
+  @@baud = 9600
+  @@databits = 8
+  @@stopbits = 1
+  @@parity = SerialPort::NONE
+  @@ports = {}
 
   #instead of sending a frame to the shield
   #output to console (for testing / no shield given)
@@ -27,11 +35,12 @@ class LolHelper
     puts "\e[A"*10 #ANSI cursor up
   end
 
-  def self.render_frame(device,frame)
-    if device.nil?
+  def self.render_frame(dev,frame)
+    if dev.nil?
       dummy_output frame
     else
-      File.write(device,frame+"\n")
+      @@ports[dev]=SerialPort.new(dev, @@baud, @@databits, @@stopbits, @@parity) if @@ports[dev].nil?
+      @@ports[dev].puts frame+"\n"
     end
   end
 
@@ -95,16 +104,19 @@ class LolApp
   attr_reader :host,:port,:delay,:running
 
   #Params: String host, int port, int delay (50-1000)
-  def initialize(host, port=LoldServer::DEF_PORT, delay=LolTask::DEF_DELAY)
+  def initialize(host="localhost", port=LoldServer::DEF_PORT, delay=LolTask::DEF_DELAY)
     @host = host
     @port = port
     @delay = delay
 
     @socket = TCPSocket.open(host,port)
     ret = @socket.gets.chomp
-    raise "Busy" if @socket.gets.chomp==LoldServer::SYM_BSY
+    raise "Busy" if ret==LoldServer::SYM_BSY
 
     @socket.puts LoldServer::SYM_STM
+    @running = true
+  rescue
+    @running = false
   end
 
   #returns whether the app is alive
@@ -114,8 +126,14 @@ class LolApp
 
   #stops app
   def stop
+    @socket.puts LolHelper::CLEAR_FRAME
     @socket.puts LoldServer::SYM_END
     @running = false
+    return true
+  end
+
+  def render(frame)
+    @socket.puts frame
   end
 end
 
@@ -263,6 +281,7 @@ class LoldServer < GServer
 
     puts "Ani added on channel #{task.channel}" if DEBUG
     io.puts SYM_OK  #Response
+    io.close
   end
 
   #read a realtime stream of frames
@@ -274,17 +293,25 @@ class LoldServer < GServer
 
     #read frames
     while true
-      line = io.gets.chomp
+      Timeout.timeout(5) do
+        line = io.gets.chomp
+      end
       break if line==SYM_END
       err.call if line.split(',').length != 9 #invalid frame
       LolHelper.render_frame @device, line
     end
 
     @streaming = false  #unlock
-    LolHelper.render_frame $device, LolHelper::CLEAR_FRAME
+    LolHelper.render_frame @device, LolHelper::CLEAR_FRAME
 
     puts "Stream finished" if DEBUG
     io.puts SYM_OK  #Response
+  rescue
+    @streaming = false  #unlock
+    LolHelper.render_frame @device, LolHelper::CLEAR_FRAME
+
+    puts "Stream timed out" if DEBUG
+    io.puts SYM_ERR  #Response
   end
 
   ####

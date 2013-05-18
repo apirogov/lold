@@ -2,6 +2,7 @@ lold - LolShield Daemon
 Copyright (C) 2013 Anton Pirogov
 Licensed under the MIT License
 ----
+Requires: serialport gem
 
 Usage:
 Flash the lold_firmware sketch to your Arduino,
@@ -20,5 +21,7 @@ or try running ./lolmpd.rb
 Troubleshooting:
 If the output does not work, check whether the
 permissions on the device are not too strict,
-I just do chmod 777 /dev/ttyUSB0 to make it work right.
-
+I just do
+  chmod 777 /run/lock
+  chmod 777 /dev/ttyUSB0
+to make it work.
