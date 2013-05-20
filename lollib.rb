@@ -42,10 +42,28 @@ class LolHelper
       @@ports[dev]=SerialPort.new(dev, @@baud, @@databits, @@stopbits, @@parity) if @@ports[dev].nil?
       @@ports[dev].puts frame+"\n"
     end
+    return true
+  rescue Exception => e  #error with serial port -> I/O error / device not found (e.g. suspend)
+    @@ports.delete dev   #remove broken serialport
+    return false
+  end
+
+  def self.close_ports
+    @@ports.each{|d,sp| sp.close if !sp.nil?}
   end
 
   def self.sleep_ms(ms)
     sleep ms.to_f/1000
+  end
+
+  #automatic lolshield detection (serial USB device search)
+  #assumes that the first found serial usb device is the arduino -> quite ugly
+  def self.autodetect
+    devs=Dir.new('/dev').entries
+    devs = devs.select{|s| s.match /tty(USB|ACM).*/}
+    dev = devs.first
+    return '/dev/'+dev if dev
+    return nil
   end
 
   #send an animation task to a server. returns true on success

@@ -7,19 +7,10 @@ require "#{File.dirname(__FILE__)}/lollib"
 
 DEBUG=false
 
-#automatic lolshield detection (serial USB device search)
-def autodetect
-  devs=Dir.new('/dev').entries
-  devs = devs.select{|s| s.match /tty(USB|ACM).*/}
-  dev = devs.first
-  return '/dev/'+dev if dev
-  return nil
-end
-
 #read possible parameters for daemon
 auto = ARGV.index('-a') ? true : false     #automatic device detection
 device = LolHelper.eval_arg('-d',nil)      #lolshield device, nil=stdout
-device = autodetect if auto
+device = LolHelper.autodetect if auto
 port = LolHelper.eval_arg('-p',LoldServer::DEF_PORT) #port for lold to listen
 delay = LolHelper.eval_arg('-D',LolTask::DEF_DELAY)  #standard delay between frames
 
@@ -48,6 +39,7 @@ loop do
   if $server.shutting_down
     LolHelper.render_frame device, LolHelper::CLEAR_FRAME
     $server.shutdown
+    LolHelper.close_ports
     exit
   end
 
@@ -92,5 +84,9 @@ loop do
   end
 
   #render next frame
-  LolHelper.render_frame device, frame
+  success = LolHelper.render_frame device, frame
+
+  if !success && auto #recover after suspension and device name change if started with -a
+    device = LolHelper.autodetect
+  end
 end
