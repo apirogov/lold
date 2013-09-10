@@ -6,6 +6,9 @@
 
 require "#{File.dirname(__FILE__)}/lollib"
 
+lold_host = LolHelper.eval_arg('-H','localhost')
+lold_port = LolHelper.eval_arg('-P',LoldServer::DEF_PORT)
+
 host = LolHelper.eval_arg('-h','localhost')
 port = LolHelper.eval_arg('-p',6600).to_i
 MPC = "mpc -h #{host} -p #{port} "
@@ -58,8 +61,8 @@ while true
     #output track
     frames = mod_frames get_frames(track), vol, prg
     duration = (frames.length*LolTask::DEF_DELAY).to_f/1000+10
-    LolHelper.send :frames=>get_frames(" "), :ch=>1
+    LolHelper.send :frames=>get_frames(" "), :ch=>1, :host=>lold_host, :port=>lold_port
     sleep 2
-    LolHelper.send :frames=>frames
+    LolHelper.send :frames=>frames, :host=>lold_host, :port=>lold_port
   end
 end

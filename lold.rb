@@ -28,7 +28,7 @@ if device!=nil
 end
 
 #start up server thread accepting clients
-$server = LoldServer.new(port)
+$server = LoldServer.new(port,nil)
 $server.device = device
 $server.start
 trap(:INT) { $server.shutting_down = true }
