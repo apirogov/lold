@@ -11,7 +11,7 @@ DEBUG=false
 auto = ARGV.index('-a') ? true : false     #automatic device detection
 device = LolHelper.eval_arg('-d',nil)      #lolshield device, nil=stdout
 device = LolHelper.autodetect if auto
-port = LolHelper.eval_arg('-p',LoldServer::DEF_PORT) #port for lold to listen
+port = LolHelper.eval_arg('-p',LolHelper::DEF_PORT) #port for lold to listen
 delay = LolHelper.eval_arg('-D',LolTask::DEF_DELAY)  #standard delay between frames
 
 currtask = nil                             #current task being executed

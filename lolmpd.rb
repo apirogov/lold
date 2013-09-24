@@ -7,7 +7,7 @@
 require "#{File.dirname(__FILE__)}/lollib"
 
 lold_host = LolHelper.eval_arg('-H','localhost')
-lold_port = LolHelper.eval_arg('-P',LoldServer::DEF_PORT)
+lold_port = LolHelper.eval_arg('-P',LolHelper::DEF_PORT)
 
 host = LolHelper.eval_arg('-h','localhost')
 port = LolHelper.eval_arg('-p',6600).to_i
@@ -31,7 +31,7 @@ end
 def mod_frames(frames, volume, progress)
   frames.map do |line|
     l = line.split(',')
-    l[-2]=perc_to_row(volume).to_s if volume
+    l[0]=perc_to_row(volume).to_s if volume
     l[-1]=perc_to_row(progress).to_s if progress
     l.join(',')
   end
@@ -61,7 +61,7 @@ while true
     #output track
     frames = mod_frames get_frames(track), vol, prg
     duration = (frames.length*LolTask::DEF_DELAY).to_f/1000+10
-    LolHelper.send :frames=>get_frames(" "), :ch=>1, :host=>lold_host, :port=>lold_port
+    LolHelper.send :frames=>get_frames(" "), :pri=>1, :host=>lold_host, :port=>lold_port
     sleep 2
     LolHelper.send :frames=>frames, :host=>lold_host, :port=>lold_port
   end

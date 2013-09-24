@@ -10,6 +10,7 @@ require 'serialport'
 #Class with commonly used methods
 class LolHelper
 
+  DEF_PORT = 10101 #default lold port
   CLEAR_FRAME="0,0,0,0,0,0,0,0,0"
 
   @@baud = 9600
@@ -72,12 +73,12 @@ class LolHelper
 
     host = params[:host]
     port = params[:port]
-    delay = params[:delay]
+    delay = params[:del]
     ttl = params[:ttl]
-    ch = params[:ch]
+    ch = params[:pri]
 
     host = "localhost" if !host
-    port = LoldServer::DEF_PORT if !port
+    port = LolHelper::DEF_PORT if !port
 
     s = TCPSocket.open(host,port)
     if s.gets.chomp==LoldServer::SYM_BSY
@@ -88,7 +89,7 @@ class LolHelper
     s.puts LoldServer::SYM_TSK
     s.puts LoldServer::SYM_DEL+" #{delay}" if delay
     s.puts LoldServer::SYM_TTL+" #{ttl}" if ttl
-    s.puts LoldServer::SYM_CHL+" #{ch}" if ch
+    s.puts LoldServer::SYM_PRI+" #{ch}" if ch
 
     s.puts LoldServer::SYM_DAT
     frames.each do |f|
@@ -117,44 +118,6 @@ class LolHelper
   end
 end
 
-#Class to simplify interactive applications on the LolShield
-class LolApp
-  attr_reader :host,:port,:delay,:running
-
-  #Params: String host, int port, int delay (50-1000)
-  def initialize(host="localhost", port=LoldServer::DEF_PORT, delay=LolTask::DEF_DELAY)
-    @host = host
-    @port = port
-    @delay = delay
-
-    @socket = TCPSocket.open(host,port)
-    ret = @socket.gets.chomp
-    raise "Busy" if ret==LoldServer::SYM_BSY
-
-    @socket.puts LoldServer::SYM_STM
-    @running = true
-  rescue
-    @running = false
-  end
-
-  #returns whether the app is alive
-  def running?
-    @running
-  end
-
-  #stops app
-  def stop
-    @socket.puts LolHelper::CLEAR_FRAME
-    @socket.puts LoldServer::SYM_END
-    @running = false
-    return true
-  end
-
-  def render(frame)
-    @socket.puts frame
-  end
-end
-
 #instance of an animation task
 class LolTask
   attr_accessor :delay, :ttl, :channel
@@ -162,18 +125,15 @@ class LolTask
 
   DEF_DELAY = 50    #standard. (valid: 50-1000, NOTE: below 50 may glitch often)
   DEF_TTL = 60      #60 sec (valid: 0-600)
-  DEF_CH = 0        #valid: 0+
-  #Channel work this way: higher channel=higher priority
-  #same channel = in order of arrival
-  #new message on higher channel = discard current message
+  DEF_PRI = 0        #valid: 0+
+  #same priority -> enqueue, higher priority -> discard current
 
   def initialize
     @delay    = DEF_DELAY
     @ttl      = DEF_TTL
-    @channel  = DEF_CH
+    @channel  = DEF_PRI
 
-    @frames   = []  #empty frame
-    @index    = 0   #current position
+    @frames   = []  #empty anim
     @timestamp = Time.now.to_i #creation timestamp
   end
 
@@ -184,10 +144,7 @@ class LolTask
 
   #get next frame
   def pop_frame
-    f = @frames[@index]
-    @index += 1
-    cancel if @index>=@frames.length
-    return f
+    return @frames.shift
   end
 
   #empty current message -> dropped
@@ -202,24 +159,24 @@ end
 
 #server accepting clients
 class LoldServer < GServer
-  DEF_PORT = 10101 #default lold port
 
   #defined tokens for protocol
+  #connection type
   SYM_TSK = "TASK"
   SYM_STM = "STREAM"
-
+  #attribute
+  SYM_DEL = "DEL"
   SYM_TTL = "TTL"
-  SYM_CHL = "CH"
-  SYM_DEL = "DELAY"
-
+  SYM_PRI = "PRI"
+  #data section
   SYM_DAT = "DATA"
   SYM_END = "END"
-
+  #server responses
   SYM_OK  = "OK"
   SYM_BSY  = "BUSY"
   SYM_ERR = "ERR"
 
-  @valid_syms = [SYM_TSK,SYM_TTL,SYM_CHL,SYM_DEL,SYM_DAT,SYM_END]
+  @valid_syms = [SYM_TSK,SYM_TTL,SYM_PRI,SYM_DEL,SYM_DAT,SYM_END]
 
   attr_accessor :device,:streaming,:interrupted,:shutting_down,:queue
 
@@ -275,7 +232,7 @@ class LoldServer < GServer
       when SYM_TTL
         err.call if v<0 || v>600
         task.ttl=v
-      when SYM_CHL
+      when SYM_PRI
         err.call if v<0
         task.channel=v
       when SYM_DEL
@@ -557,7 +514,7 @@ class LolFactory
           else
             tmps = false
           end
-          @frame[j][x+i] = tmps if (x+i)<14 && x+i>(-1)
+          @frame[j+1][x+i] = tmps if (x+i)<14 && x+i>(-1)
           mask <<= 1
         end
 
@@ -593,7 +550,7 @@ class LolFactory
       frame.each{ |line|
         v = 0
         line.each_with_index{ |led,i|
-          v += 2**i if led==true
+          v += 1<<i if led==true
         }
         ret += v.to_s+','
       }

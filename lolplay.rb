@@ -12,12 +12,12 @@ if ARGV.length == 0
   puts "       lolplay.rb FLAGS -m \"message\""
   puts "FLAGS:"
   puts "  -h: lold host, default: #{DEF_HOST}"
-  puts "  -p: lold port, default: #{LoldServer::DEF_PORT}"
+  puts "  -p: lold port, default: #{LolHelper::DEF_PORT}"
   puts "  -D: Frame delay (50-1000),  default: #{LolTask::DEF_DELAY}"
   puts "  -T: TTL in sec (0-600),     default: #{LolTask::DEF_TTL}"
-  puts "  -C: Channel/Priority (>=0), default: #{LolTask::DEF_CH}"
+  puts "  -C: Channel/Priority (>=0), default: #{LolTask::DEF_PRI}"
   puts
-  puts "-F: File is in AsciiFrame format"
+  puts "-A: File is in AsciiFrame format"
   puts "-P: File is PDE file from Lol Shield Theatre Homepage"
   puts "nothing: expecting raw animation file"
   puts
@@ -28,7 +28,7 @@ end
 del = LolHelper.eval_arg "-D", nil
 ttl = LolHelper.eval_arg "-T", nil
 chl = LolHelper.eval_arg "-C", nil
-port = LolHelper.eval_arg "-p", LoldServer::DEF_PORT
+port = LolHelper.eval_arg "-p", LolHelper::DEF_PORT
 host = LolHelper.eval_arg "-h", DEF_HOST
 
 #conversion functions
@@ -43,7 +43,7 @@ def frames2raw(lines)
     frame = strframe.map do |line| #convert to ints
       val = 0
       line.each_with_index do |led,pos|
-        val += led == '.' ? 0 : 2**pos
+        val += led == '.' ? 0 : 1<<pos
       end
       val
     end
@@ -78,7 +78,7 @@ else
 end
 
 #format flags
-if ARGV.index("-F") #Frame format
+if ARGV.index("-A") #Frame format
 #reads a text file with an animation
 #file shall have frames separated by newlines,
 #9 rows, 14 cols per frame, . = off, everything else = on
@@ -91,5 +91,5 @@ end
 #otherwise - do nothing, assume "raw" correct input
 
 #send animation task
-params={host:host, port:port, delay:del, ttl:ttl, ch:chl, frames:lines}
+params={host:host, port:port, del:del, ttl:ttl, pri:chl, frames:lines}
 LolHelper.send params
