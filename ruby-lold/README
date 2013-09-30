@@ -2,28 +2,26 @@ lold - LolShield Daemon
 Copyright (C) 2013 Anton Pirogov
 Licensed under the MIT License
 ----
+Requires: serialport gem
+
 Usage:
 Flash the lold_firmware sketch to your Arduino,
 keep it connected via USB.
 
-Build lold and lolplay with make.
-Start ./lold -d /dev/ttyUSB*
+Start lold.rb -d /dev/ttyUSB*
 where ttyUSB* or something similar is your Arduino device.
 
 You are ready to go!
 
 Now you can send animations to your LolShield. Try
-./lolplay -m "Hello world"
-or try running ./lolmpd.sh if you use MPD.
+./lolplay.rb -m "Hello world"
+or try running ./lolmpd.rb
 
-In ruby-lold you can find the old lold ruby implementation.
 
 Troubleshooting:
 If the output does not work, check whether the
 permissions on the device are not too strict,
-add user to uucp group if necessary.
 I just do
   chmod 777 /run/lock
   chmod 777 /dev/ttyUSB0
 to make it work.
-
