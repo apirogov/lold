@@ -16,7 +16,7 @@ LFLAGS = -Wall -lm -lpthread ${DEBUG}
 
 ####
 
-all: options lold lolplay 
+all: options lold lolplay
 
 options:
 	@echo build options:

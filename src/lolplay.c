@@ -65,18 +65,18 @@ LolList *ascii2frames(LolList *lines) {
   LolList *curr = lines;
   char *line = NULL;
   while (curr != NULL) {
-	//9 lines representing frame
+    //9 lines representing frame
     for(int i=0; i<9; i++) {
       if (curr==NULL)
-    	break;
+        break;
 
-	  line = curr->value;
-	  if (line == NULL || strlen(line)<14)
-	    break;
+      line = curr->value;
+      if (line == NULL || strlen(line)<14)
+        break;
 
       for (int j=0; j<14; j++) {
-	    fac->frame[i][j] = (line[j]=='.') ? 0 : 1;
-	  }
+        fac->frame[i][j] = (line[j]=='.') ? 0 : 1;
+      }
 
       curr = curr->next;
     }
@@ -150,7 +150,7 @@ int main(int argc, char *argv[]) {
     task->frames = frames;
 
   } else { //animation file
-	//open file
+    //open file
     char *filename = argv[argc-1];
     FILE *fp = fopen(filename, "r");
     if (fp == NULL)
@@ -176,11 +176,11 @@ int main(int argc, char *argv[]) {
     if (type==0) { //raw
       LolList *curr = lines;
       while (curr!=NULL) {
-    	char *str = curr->value;
-    	len = strlen(str);
-    	if (str[len-1] == '\n')
-          str[len-1] = '\0';
-    	curr = curr->next;
+        char *str = curr->value;
+        len = strlen(str);
+      if (str[len-1] == '\n')
+        str[len-1] = '\0';
+      curr = curr->next;
       }
       task->frames = lines;
     } else if (type==1) { //ascii
@@ -203,7 +203,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (!loltask_send(host, port, task)) //error sending
-	exit(EXIT_FAILURE);
+    exit(EXIT_FAILURE);
 
   loltask_free(task);
   return EXIT_SUCCESS;
