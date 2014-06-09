@@ -12,7 +12,7 @@
 #define DEF_PRI		0
 
 typedef struct {
-  int delay; //ms between frames. valid: 50-1000, below may glitch
+  int delay; //ms between frames. valid: 20-1000
   int ttl; //seconds the animation is kept. valid: 0-600
   int pri; //Priority, higher overrides lower messages and discards them, >= 0
 

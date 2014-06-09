@@ -27,3 +27,6 @@ I just do
   chmod 777 /dev/ttyUSB0
 to make it work.
 
+----
+TODO: Find bug which kills lold sometimes
+Add lold protocol support to send hardware-rendered text messages

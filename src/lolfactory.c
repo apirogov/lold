@@ -262,7 +262,7 @@ void lolfac_draw(LolFactory *fac, int xval, char chr) {
 //Generate a set of frames for a scrolling text message
 void lolfac_banner(LolFactory *fac, int len, const char *text) {
   int xoff=14;/* setmx offset to the right end of the screen*/
-  for(int i=0; i<len*5 +52; i++) { /*scrolling loop*/
+  for(int i=0; i<len*6 +52; i++) { /*scrolling loop*/
     lolfac_clear(fac);
     for(int j=0; j<len; j++) { /*loop over all of the chars in the text*/
       lolfac_draw(fac, xoff + j*6, text[j]); /* call the draw font function*/

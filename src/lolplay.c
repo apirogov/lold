@@ -95,22 +95,25 @@ LolList *ascii2frames(LolList *lines) {
 
 int main(int argc, char *argv[]) {
   if (argc==1) {
-    printf("Usage: lolplay OPTIONS [-F|-P] FILE\n");
+    printf("Usage: lolplay OPTIONS [-A|-P] [FILE (if not stdin)]\n");
     printf("       lolplay OPTIONS -m \"message\"\n");
     printf("FLAGS:\n");
     printf("  -h: lold host, default: %s\n", DEF_LOLD_HOST);
     printf("  -p: lold port, default: %i\n", DEF_LOLD_PORT);
-    printf("  -D: Frame delay (50-1000),  default: %i\n", DEF_DELAY);
+    printf("  -D: Frame delay (20-1000),  default: %i\n", DEF_DELAY);
     printf("  -T: TTL in sec (0-600),     default: %i\n", DEF_TTL);
     printf("  -C: Channel/Priority (>=0), default: %i\n", DEF_PRI);
     printf("\n");
     printf("-A: File is in AsciiFrame format\n");
     printf("-P: File is PDE sketch file from Lol Shield Theatre Homepage\n");
-    printf("nothing: File is raw animation file\n");
+    printf("-R: File is raw animation file\n");
     printf("\n");
-    printf("-m: Send text message\n");
+    printf("-m: Render and send scrolling text message\n");
     printf("\n");
-    printf("-o: Output frames to stdout, no sending\n");
+    printf("-b: Burn this animation to Lolshield ROM (writes with 100ms delay)\n");
+    printf("-t: Toggle Lolshield mode (loop ROM or pass through mode)\n");
+    printf("-o: Output raw frames to stdout, no sending\n");
+    printf("\n");
 
     exit(EXIT_FAILURE);
   }
@@ -122,12 +125,22 @@ int main(int argc, char *argv[]) {
   char *host = eval_arg(argc, argv, "-h\0", DEF_LOLD_HOST);
 
   int oflag = eval_flag(argc, argv, "-o\0");
+  int bflag = eval_flag(argc, argv, "-b\0");
+  int tflag = eval_flag(argc, argv, "-t\0");
 
   //Initialize loltask
   LolTask *task = loltask_new();
-  task->delay = del;
+  task->delay = bflag ? 100 : del;
   task->ttl = ttl;
   task->pri = pri;
+
+  if (tflag) { //just toggle
+    char *frame = malloc(100*sizeof(char));
+    frame[0] = '\0';
+    snprintf(frame, 100, "16384,0,0,0,0,0,0,0,0");
+    task->frames = lollist_add(task->frames, frame);
+    goto send;
+  }
 
   if (eval_flag(argc, argv, "-m\0")) { //message
     char *msg = eval_arg(argc, argv, "-m\0", NULL);
@@ -150,11 +163,13 @@ int main(int argc, char *argv[]) {
     task->frames = frames;
 
   } else { //animation file
-	//open file
+    //open file
     char *filename = argv[argc-1];
     FILE *fp = fopen(filename, "r");
-    if (fp == NULL)
-      exit(EXIT_FAILURE); //failed opening file
+    if (fp == NULL) {
+      // exit(EXIT_FAILURE); //failed opening file
+	  fp = stdin; //use standard input if no file given
+    }
 
     char *line = NULL;
     size_t len = 0;
@@ -191,6 +206,34 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  //burn flag set
+  if (bflag) {
+    //check message length
+    int cnt = 0;
+    LolList *curr = task->frames;
+	while (curr!=NULL) {
+		curr = curr->next;
+		cnt++;
+		if (cnt>56) {
+          printf("Message too long to store (max. frames: 56)!\n");
+          exit(EXIT_FAILURE);
+		}
+	}
+
+	//prepend and append recording signals
+	curr = task->frames;
+    char *frame = malloc(100*sizeof(char));
+    frame[0] = '\0';
+    snprintf(frame, 100, "16384,1,%i,0,0,0,0,0,0", del);
+	lollist_insert(&task->frames, task->frames, frame);
+
+    frame = malloc(100*sizeof(char));
+    frame[0] = '\0';
+    snprintf(frame, 100, "16384,0,0,0,0,0,0,0,0");
+	lollist_add(task->frames, frame);
+  }
+
+send:
   //output flag set - no sending, but output
   if (oflag) {
     LolList *curr = task->frames;

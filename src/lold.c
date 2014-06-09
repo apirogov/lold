@@ -29,13 +29,15 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
+//local
 #include "arduino-serial-lib.h"
 #include "lolhelper.h"
 #include "loltask.h"
 #include "lold.h"
 #include "network.h"
 
-#define DEBUG 0
+#define DEBUG 1
+#define BUFSIZE 128
 
 int s_port = -1; //serial port descriptor
 int svr_sock = 0; //server socket
@@ -76,7 +78,7 @@ static void error_exit(char *error_message) {
 
 //mock output to stdout for testing/ no arduino present
 void dummy_output(const char *frame) {
-  char buff[100];
+  char buff[BUFSIZE];
   strncpy(buff, frame, strlen(frame)+1);
 
   char * pch;
@@ -107,7 +109,7 @@ void render_frame(const char *dev, const char *frame) {
 
   //open port if no open port
   if (s_port == -1) {
-    s_port = serialport_init(dev, 9600);
+    s_port = serialport_init(dev, 115200);
     if (s_port == -1) {
       fprintf(stderr, "Could not open serial device file! Aborting.\n");
       exit(EXIT_FAILURE);
@@ -230,8 +232,8 @@ void *client_thread(void *t) {
   free(t); //free argument int
   FILE *stream = fdopen(fd, "r");
 
-  char buff[100];
-  buff[99] = '\0';
+  char buff[BUFSIZE];
+  buff[BUFSIZE-1] = '\0';
 
   if (streaming) { //locked by some stream -> tell client
     if (DEBUG) fprintf(stderr, "> Animation rejected. Server streaming.\n");
@@ -242,7 +244,7 @@ void *client_thread(void *t) {
 
     //read head - task or stream?
     //tcp_recv_string(fd, 100, buff);
-    fgets(buff, 100, stream);
+    fgets(buff, BUFSIZE, stream);
     if (strncmp(buff, LOLD_SYM_TSK, LOLD_SYM_TSK_LEN)==0) //task
       read_task(stream);
     else if (strncmp(buff, LOLD_SYM_STM, LOLD_SYM_STM_LEN)==0) { //streaming
@@ -263,13 +265,13 @@ void *client_thread(void *t) {
 
 //read async animation task
 void read_task(FILE *stream) {
-  char buff[100];
-  buff[99] = '\0';
+  char buff[BUFSIZE];
+  buff[BUFSIZE-1] = '\0';
   LolTask *tsk = loltask_new();
 
   //read parameters
   while (1) {
-    fgets(buff, 100, stream);
+    fgets(buff, BUFSIZE, stream);
 
     //start of data section
     if (strncmp(buff, LOLD_SYM_DAT, LOLD_SYM_DAT_LEN) == 0)
@@ -280,7 +282,7 @@ void read_task(FILE *stream) {
     int val = atoi(strtok(NULL, " \n")); //value
 
     if (strncmp(buff, LOLD_SYM_DEL, LOLD_SYM_DEL_LEN) == 0
-            && val>=50 && val<=1000)
+            && val>=20 && val<=1000)
       tsk->delay = val;
     else if (strncmp(buff, LOLD_SYM_TTL, LOLD_SYM_TTL_LEN) == 0
             && val>=0 && val<=600)
@@ -289,6 +291,7 @@ void read_task(FILE *stream) {
             && val>=0)
       tsk->pri = val;
     else {
+      if (DEBUG) fprintf(stderr, "> Animation invalid, discarded.\n");
       loltask_free(tsk);
       puts_tcp_stream(LOLD_SYM_ERR"\n\0", stream);
       return;
@@ -297,7 +300,7 @@ void read_task(FILE *stream) {
 
   //read frames
   while (1) {
-    fgets(buff, 100, stream);
+    fgets(buff, BUFSIZE, stream);
 
     //end of frames
     if (strncmp(buff, LOLD_SYM_END"\0", LOLD_SYM_END_LEN) == 0)
@@ -334,8 +337,8 @@ void read_task(FILE *stream) {
 
 //read stream, just act as proxy to lolshield
 void read_stream(FILE *stream) {
-  char buff[100];
-  buff[99] = '\0';
+  char buff[BUFSIZE];
+  buff[BUFSIZE-1] = '\0';
 
   if (DEBUG) fprintf(stderr, "> Stream started.\n");
 
@@ -355,7 +358,7 @@ void read_stream(FILE *stream) {
       return;
     }
 
-    if (fgets(buff, 100, stream) == NULL) { //nothing in buffer?
+    if (fgets(buff, BUFSIZE, stream) == NULL) { //nothing in buffer?
       sleep_ms(30);
       continue;
     }
