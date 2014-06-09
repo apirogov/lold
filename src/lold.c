@@ -37,7 +37,6 @@
 #include "network.h"
 
 #define DEBUG 1
-#define BUFSIZE 128
 
 int s_port = -1; //serial port descriptor
 int svr_sock = 0; //server socket
@@ -244,7 +243,7 @@ void *client_thread(void *t) {
 
     //read head - task or stream?
     //tcp_recv_string(fd, 100, buff);
-    fgets(buff, BUFSIZE, stream);
+    fgets(buff, BUFSIZE-1, stream);
     if (strncmp(buff, LOLD_SYM_TSK, LOLD_SYM_TSK_LEN)==0) //task
       read_task(stream);
     else if (strncmp(buff, LOLD_SYM_STM, LOLD_SYM_STM_LEN)==0) { //streaming
@@ -271,7 +270,7 @@ void read_task(FILE *stream) {
 
   //read parameters
   while (1) {
-    fgets(buff, BUFSIZE, stream);
+    fgets(buff, BUFSIZE-1, stream);
 
     //start of data section
     if (strncmp(buff, LOLD_SYM_DAT, LOLD_SYM_DAT_LEN) == 0)
@@ -300,7 +299,7 @@ void read_task(FILE *stream) {
 
   //read frames
   while (1) {
-    fgets(buff, BUFSIZE, stream);
+    fgets(buff, BUFSIZE-1, stream);
 
     //end of frames
     if (strncmp(buff, LOLD_SYM_END"\0", LOLD_SYM_END_LEN) == 0)
@@ -358,7 +357,7 @@ void read_stream(FILE *stream) {
       return;
     }
 
-    if (fgets(buff, BUFSIZE, stream) == NULL) { //nothing in buffer?
+    if (fgets(buff, BUFSIZE-1, stream) == NULL) { //nothing in buffer?
       sleep_ms(30);
       continue;
     }
@@ -495,7 +494,6 @@ int main(int argc, char *argv[]) {
     pthread_mutex_lock(&imutex);
     if (interrupted) {
       interrupted = 0;
-      pthread_mutex_unlock(&imutex);
 
       if (DEBUG) fprintf(stderr, "New task inserted!\n");
 
@@ -513,8 +511,8 @@ int main(int argc, char *argv[]) {
 
         if (DEBUG) fprintf(stderr, "Ani cancelled\n");
       }
-
     }
+    pthread_mutex_unlock(&imutex);
 
     //load new task if neccessary
     if (currtask == NULL) {

@@ -8,6 +8,7 @@
 #include <time.h>
 
 #include "lold.h"
+#include "lolhelper.h"
 #include "loltask.h"
 #include "network.h"
 
@@ -34,43 +35,43 @@ void loltask_free(LolTask *task) {
 //task: LolTask structure to be transferred
 //returns non-zero on success
 int loltask_send(const char *host, int port, const LolTask *task) {
-  char buffer[128];
-  buffer[127] = '\0';
+  char buffer[BUFSIZE];
+  buffer[BUFSIZE-1] = '\0';
   FILE *stream = open_tcp_stream(host, port); //open stream
   if (stream==NULL)
     return 0; //error
 
-  fgets(buffer, 128, stream);
+  fgets(buffer, BUFSIZE-1, stream);
   if (strncmp(buffer, LOLD_SYM_OK, 2)!=0) {
 	  close_tcp_stream(stream);
     return 0; //server busy
   }
 
-  snprintf(buffer, 128, "%s\n", LOLD_SYM_TSK);
+  snprintf(buffer, BUFSIZE-1, "%s\n", LOLD_SYM_TSK);
   puts_tcp_stream(buffer, stream);
-  snprintf(buffer, 128, "%s %i\n", LOLD_SYM_DEL, task->delay);
+  snprintf(buffer, BUFSIZE-1, "%s %i\n", LOLD_SYM_DEL, task->delay);
   puts_tcp_stream(buffer, stream);
-  snprintf(buffer, 128, "%s %i\n", LOLD_SYM_TTL, task->ttl);
+  snprintf(buffer, BUFSIZE-1, "%s %i\n", LOLD_SYM_TTL, task->ttl);
   puts_tcp_stream(buffer, stream);
-  snprintf(buffer, 128, "%s %i\n", LOLD_SYM_PRI, task->pri);
+  snprintf(buffer, BUFSIZE-1, "%s %i\n", LOLD_SYM_PRI, task->pri);
   puts_tcp_stream(buffer, stream);
 
-  snprintf(buffer, 128, "%s\n", LOLD_SYM_DAT);
+  snprintf(buffer, BUFSIZE-1, "%s\n", LOLD_SYM_DAT);
   puts_tcp_stream(buffer, stream);
 
   LolList *curr = task->frames;
   while(curr!=NULL) {
 	if (curr->value != NULL) {
-	  snprintf(buffer, 127, "%s\n", (char*)curr->value);
+	  snprintf(buffer, BUFSIZE-1, "%s\n", (char*)curr->value);
     puts_tcp_stream(buffer, stream);
 	}
     curr = curr->next;
   }
 
-  snprintf(buffer, 128, "%s\n", LOLD_SYM_END);
+  snprintf(buffer, BUFSIZE-1, "%s\n", LOLD_SYM_END);
   puts_tcp_stream(buffer, stream);
 
-  fgets(buffer, 128, stream);
+  fgets(buffer, BUFSIZE-1, stream);
   if (strncmp(buffer, LOLD_SYM_OK, 2)!=0) {
 	  close_tcp_stream(stream);
 	  return 0; //error

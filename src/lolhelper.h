@@ -8,6 +8,8 @@
 //default server port
 #define DEF_LOLD_PORT 10101
 
+#define BUFSIZE 128
+
 //representation of empty frame, null-terminated, with newline
 extern const char EMPTY_FRAME[];
 
