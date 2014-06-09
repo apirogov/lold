@@ -494,12 +494,17 @@ int main(int argc, char *argv[]) {
     //New task arrived -> check stuff
     pthread_mutex_lock(&imutex);
     if (interrupted) {
+      interrupted = 0;
+      pthread_mutex_unlock(&imutex);
+
       if (DEBUG) fprintf(stderr, "New task inserted!\n");
 
       if (queue==NULL)
         exit(EXIT_FAILURE); //can not happen!
 
+      pthread_mutex_lock(&qmutex);
       LolTask *first = (LolTask*)(queue->value);
+      pthread_mutex_unlock(&qmutex);
 
       //new arrived has higher priority? cancel current ani
       if (currtask != NULL && first->pri > currtask->pri) {
@@ -509,13 +514,13 @@ int main(int argc, char *argv[]) {
         if (DEBUG) fprintf(stderr, "Ani cancelled\n");
       }
 
-      interrupted = 0;
     }
-    pthread_mutex_unlock(&imutex);
 
     //load new task if neccessary
     if (currtask == NULL) {
+      pthread_mutex_lock(&qmutex);
       currtask = lollist_shift(&queue);
+      pthread_mutex_unlock(&qmutex);
 
       if (DEBUG) if (currtask != NULL) fprintf(stderr, "Ani start\n");
     }

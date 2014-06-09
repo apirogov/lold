@@ -3,7 +3,7 @@
 #Copyright (C) 2013 Anton Pirogov
 #Licensed under the MIT License
 #
-#requires mpc, grep and awk to be installed to work
+#requires mpc and standard unix tools to work
 
 #help text
 usage() {
