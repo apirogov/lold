@@ -91,6 +91,7 @@ int readCmd() {
     if (len==0)
       return 0; //something went wrong
     buf[len] = '\0';
+    Serial.read(); //consume newline
     return 2;
   } else if (frame[0] == 16386) { //shaded frame
     grayscale = true;
@@ -236,7 +237,7 @@ void scrollText(char *text, int len) {
   for (int j=DISPLAY_COLS-1; j>-DISPLAY_COLS-pixWidth; j--) {
 
     //abort animation if nonblocking + input waiting or if playback mode
-    if (!frame[2] && Serial.available() || state==2) {
+    if ((!frame[2] && Serial.available()) || state==2) {
       Serial.println("Interrupted render text");
       return;
     }

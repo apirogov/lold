@@ -142,6 +142,9 @@ int main(int argc, char *argv[]) {
   int oflag = eval_flag(argc, argv, "-o\0");
   int tflag = eval_flag(argc, argv, "-t\0");
   int burnFlag = eval_flag(argc, argv, "-B\0");
+  int mFlag = eval_flag(argc, argv, "-m\0");
+  int MFlag = eval_flag(argc, argv, "-M\0");
+  int aniType = 0;
 
   //Initialize loltask
   LolTask *task = loltask_new();
@@ -164,7 +167,7 @@ int main(int argc, char *argv[]) {
     goto send;
   }
 
-  if (eval_flag(argc, argv, "-m\0")) { //software text message
+  if (mFlag) { //software text message
     char *msg = eval_arg(argc, argv, "-m\0", NULL);
     if (msg == NULL) {
       printf("No message passed!\n");
@@ -184,7 +187,7 @@ int main(int argc, char *argv[]) {
     //fill loltask with frames
     task->frames = frames;
 
-  } else if (eval_flag(argc,argv,"-M\0")) {
+  } else if (MFlag) {
     char *msg = eval_arg(argc, argv, "-M\0", NULL);
     char *frame = malloc(100*sizeof(char));
     frame[0] = '\0';
@@ -211,13 +214,14 @@ int main(int argc, char *argv[]) {
       line = NULL;
     }
 
-    int type = 0; //raw compressed frames
+    if (eval_flag(argc, argv, "-R\0")) //raw data
+      aniType = 1;
     if (eval_flag(argc, argv, "-A\0")) //ascii frames
-      type = 1;
+      aniType = 2;
     else if (eval_flag(argc, argv, "-P\0")) //PDE sketch
-      type = 2;
+      aniType = 3;
 
-    if (type==0) { //raw
+    if (aniType==1) { //raw
       LolList *curr = lines;
       while (curr!=NULL) {
         char *str = curr->value;
@@ -227,11 +231,14 @@ int main(int argc, char *argv[]) {
       curr = curr->next;
       }
       task->frames = lines;
-    } else if (type==1) { //ascii
+    } else if (aniType==2) { //ascii
       task->frames = ascii2frames(lines, gflag);
-    } else if (type==2) { //pde
+    } else if (aniType==3) { //pde
       task->delay = get_delay_from_pde(lines);
       task->frames = pde2frames(lines);
+    } else {
+      printf("No valid type selected!\n");
+      exit(EXIT_FAILURE);
     }
   }
 
@@ -266,6 +273,13 @@ int main(int argc, char *argv[]) {
   }
 
 send:
+  //append clearing frame if animation from file
+  if (aniType) {
+    char *frame = malloc(100*sizeof(char));
+    snprintf(frame, 100, "0,0,0,0,0,0,0,0,0");
+    lollist_add(task->frames, frame);
+  }
+
   //output flag set - no sending, but output
   if (oflag) {
     LolList *curr = task->frames;

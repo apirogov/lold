@@ -36,7 +36,7 @@
 #include "lold.h"
 #include "network.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 int s_port = -1; //serial port descriptor
 int svr_sock = 0; //server socket
@@ -82,20 +82,33 @@ void dummy_output(const char *frame) {
 
   char * pch;
   pch = strtok (buff,",");
+  int valcount = 0;
   while (pch != NULL)
   {
     int num = atoi(pch);
+
+    //just ignore other command types for now
+    if (valcount==0 && num>16383) {
+      for (int i=0; i<9; i++)
+        printf("\n");
+      break;
+    }
+
     for (int i=0; i<13; i++) {
       if ((num & (1<<i)) != 0)
-        printf("%c[31;1mO%c[0m", 27, 27); //ON (ANSI red)
+        printf("%c[31;1mX%c[0m", 27, 27); //ON (ANSI red)
       else
-        printf("O"); //OFF
+        printf("."); //OFF
     }
     printf("\n");
     pch = strtok (NULL, ",");
+    valcount++;
   }
+
+  //scroll up
   for (int i=0; i<9; i++)
     printf("%c[A", 27); //ANSI cursor up
+
   fflush(stdout);
 }
 
@@ -542,8 +555,9 @@ int main(int argc, char *argv[]) {
       currtask = NULL;
       clean_tasks(); //remove aged tasks
 
-      //render empty frame to clean lolshield
-      render_frame(device, EMPTY_FRAME);
+      //render empty frame to clean lolshield -> breaks hardware text message
+      //render_frame(device, EMPTY_FRAME);
+
       sleep_ms(delay);
 
       if (DEBUG) fprintf(stderr, "Ani done\n");
