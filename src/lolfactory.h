@@ -12,6 +12,7 @@
 #define MAX_Y 9
 
 typedef struct {
+  int grayscale; //whether this factory outputs in grayscale
   LolList *frames; //double linked list containing compiled frames of the animation
   LolList *lastFrame; //for speedup-access last directly
   char **frame; //9*14 2D array of chars representing a lolshield state
@@ -33,6 +34,7 @@ void lolfac_flip(LolFactory *fac);
 void lolfac_draw(LolFactory *fac, int xval, char chr);
 void lolfac_banner(LolFactory *fac, int len, const char *text);
 
-char *lolfac_compile(char **frame); //may be used separately of a lolfactory object
+//may be used separately of a lolfactory object
+char *lolfac_compile(char **frame, int grayscale);
 
 #endif /* _LOLFACTORY_H_ */

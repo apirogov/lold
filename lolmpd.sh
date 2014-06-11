@@ -66,14 +66,14 @@ while true; do
     OLDTRACK=$TRACK
     SLEEPCOUNT=0
     
-    #calculate approximate duration (default delay of 50ms)
-    frmnum=`./lolplay -m $TRACK -o | wc -l`
+    #calculate approximate duration
+    frmnum=`./lolplay -D 30 -m $TRACK -o | wc -l`
     DURATION=$(($frmnum*50/1000+10))
 
     #output track
     ./lolplay -h $LOLD_HOST -p $LOLD_PORT -C 1 -m " " #interrupt running
     sleep 2
-    ./lolplay -h $LOLD_HOST -p $LOLD_PORT -D 50 -m "$TRACK" #current track
+    ./lolplay -h $LOLD_HOST -p $LOLD_PORT -D 30 -m "$TRACK" #current track
   fi
 done
 

@@ -162,7 +162,7 @@ LolFactory *lolfac_new(void) {
   fac->frames = NULL;
   fac->frame = malloc(9*sizeof(char*));
   for(int i=0; i<MAX_Y; i++)
-	fac->frame[i] = malloc(14*sizeof(char));
+    fac->frame[i] = malloc(14*sizeof(char));
   lolfac_clear(fac);
   return fac;
 }
@@ -204,31 +204,44 @@ void lolfac_empty(LolFactory *fac) {
 
 //input: pointer to 2d 9*14 char truthy char array
 //output: pointer to compiled frame string (without newline)
-char *lolfac_compile(char **frame) {
-  //allocates for each line the maximum amount possible i.e. the "full on" frame
-  char *ret = malloc(sizeof(char)*6*9+1);
+char *lolfac_compile(char **frame, int grayscale) {
+  char *ret = malloc(sizeof(char)*BUFSIZE);
 
   char *cur = ret; //current position pointer
   ret[0] = 0; //initialize valid string
 
-  //calculate values, each number represents a bit-matrix for the leds of the line
-  //-> easy to en/decode compressed frame format with comma sep. decimals
-  for(int y=0; y<MAX_Y; y++) {
-    int v = 0;
-    for(int x=0; x<MAX_X; x++) {
-      if (frame[y][x])
-        v += (1<<x);
+  if (!grayscale) {
+    //calculate values, each number represents a bit-matrix for the leds of the line
+    //-> easy to en/decode compressed frame format with comma sep. decimals
+    for(int y=0; y<MAX_Y; y++) {
+      short v = 0;
+      for(int x=0; x<MAX_X; x++) {
+        v |= (frame[y][x] & 1) << x;
+      }
+
+      sprintf(cur, "%i,", v); //append
+      cur = ret+strlen(ret); //update pointer
     }
-    sprintf(cur, "%i,", v); //append
+    //remove trailing comma
+    ret[strlen(ret)-1] = '\0';
+  } else {
+    sprintf(cur, "16386,"); //start string with grayscale-frame signal
     cur = ret+strlen(ret); //update pointer
+
+    //use grayscale encoding
+    for(int y=0; y<MAX_Y; y++) {
+      for(int x=0; x<MAX_X; x++) {
+        sprintf(cur, "%c", frame[y][x]+'0'); //append
+        cur = ret+strlen(ret); //update pointer
+      }
+    }
   }
-  ret[strlen(ret)-1] = '\0';
   return ret;
 }
 
 //Enqueue current frame in compiled form into linked list
 void lolfac_flip(LolFactory *fac) {
-  char *val = lolfac_compile(fac->frame);
+  char *val = lolfac_compile(fac->frame, fac->grayscale);
 
   if (fac->frames == NULL) //first?
     fac->lastFrame = fac->frames = lollist_push(NULL, val);

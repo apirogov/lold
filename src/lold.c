@@ -308,7 +308,8 @@ void read_task(FILE *stream) {
     char *save_ptr;
     strtok_r(buff,"\n", &save_ptr); //strip newline
 
-    //check frame (9 comma sep ints?)
+    //check frame (9 comma sep ints?) DOES NOT WORK WITH NEW COMMANDS
+    /*
     int commas=0;
     for (unsigned int i=0; i<strlen(buff); i++)
       if (buff[i]==',')
@@ -318,6 +319,7 @@ void read_task(FILE *stream) {
       puts_tcp_stream(LOLD_SYM_ERR"\n\0", stream);
       return;
     }
+    */
 
     //copy frame into task
     char *frame = malloc(sizeof(char)*strlen(buff)+1);

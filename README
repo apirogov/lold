@@ -1,5 +1,5 @@
 lold - LolShield Daemon
-Copyright (C) 2013 Anton Pirogov
+Copyright (C) 2014 Anton Pirogov
 Licensed under the MIT License
 ----
 Usage:
@@ -29,4 +29,4 @@ to make it work.
 
 ----
 TODO: Find bug which kills lold sometimes
-Add lold protocol support to send hardware-rendered text messages
+sketch: full ascii font for hardware rendering
